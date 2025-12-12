@@ -1,0 +1,49 @@
+# Node modules
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+build/
+.vite/
+out/
+
+# Vite / frontend build
+/frontend/dist/
+/frontend/.vite/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+coverage/
+.nyc_output/
+
+# Environment files
+.env
+.env.*
+.env.local
+/backend/.env
+/frontend/.env
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDE / editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Misc
+*.log
+*.tgz
+*.zip
+.cache/
