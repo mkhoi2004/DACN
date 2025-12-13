@@ -57,7 +57,7 @@ function getPagination(req) {
 }
 
 // ===== 1. SerialPort cho Arduino =====
-const ARDUINO_PORT = process.env.ARDUINO_PORT || 'COM5'; // ✅ lấy từ env
+const ARDUINO_PORT = 'COM5'; // nhớ chỉnh đúng COM
 const BAUD_RATE = 9600;
 
 let port;
@@ -84,56 +84,8 @@ if (port) {
 
 // ===== 2. Express + HTTP + WebSocket =====
 const app = express();
-
-// ✅ chạy qua ngrok / proxy
-app.set('trust proxy', true);
-
-// ✅ CORS chuẩn cho Vercel + localhost
-const rawOrigins = (process.env.CORS_ORIGINS || '')
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean);
-
-const fallbackOrigins = ['http://localhost:5173', 'http://localhost:3000'];
-
-function isAllowedOrigin(origin) {
-  const list = rawOrigins.length > 0 ? rawOrigins : fallbackOrigins;
-
-  // allow exact matches
-  if (list.includes(origin)) return true;
-
-  // ✅ allow all vercel preview domains (https://*.vercel.app)
-  if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)) return true;
-
-  // allow localhost any port
-  if (/^http:\/\/localhost:\d+$/i.test(origin)) return true;
-
-  return false;
-}
-
-app.use(
-  cors({
-    origin: (origin, cb) => {
-      // Postman/cURL không có Origin => cho qua
-      if (!origin) return cb(null, true);
-
-      if (isAllowedOrigin(origin)) return cb(null, true);
-
-      return cb(new Error('Not allowed by CORS: ' + origin));
-    },
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
-
-// Preflight
-app.options('*', cors());
+app.use(cors());
 app.use(express.json());
-
-// (tuỳ chọn) route check nhanh
-app.get('/api/health', (req, res) => {
-  res.json({ ok: true, time: new Date().toISOString() });
-});
 
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
@@ -147,11 +99,12 @@ function broadcast(message) {
   });
 }
 
-wss.on('connection', () => {
+wss.on('connection', (ws) => {
   console.log('WebSocket client connected');
 });
 
 // ===== 3. Hàm ghi DB (có broadcast) =====
+
 async function insertGateEvent(eventType, data) {
   const { freeSlots, gateAngle, state } = data;
   const result = await pool.query(
@@ -165,6 +118,7 @@ async function insertGateEvent(eventType, data) {
 }
 
 async function insertAlert(alertType, message, isHandled = false) {
+  // 1) Ghi vào bảng alerts như cũ
   const result = await pool.query(
     `INSERT INTO alerts (alert_type, message, is_handled)
      VALUES ($1, $2, $3)
@@ -173,41 +127,45 @@ async function insertAlert(alertType, message, isHandled = false) {
   );
   const row = result.rows[0];
 
+  // Broadcast mọi alert mới (kể cả STAFF_RESET)
   broadcast({ type: 'ALERT_CREATED', payload: row });
 
+  // 2) Nếu alert chưa handled => gửi email + ghi log gmail_logs
   if (!isHandled) {
     try {
       const emailResult = await sendAlertEmail(alertType, message);
 
-      if (emailResult) {
-        await pool.query(
-          `INSERT INTO email_logs (
-             alert_id,
-             message_id,
-             to_email,
-             subject,
-             body,
-             sent_at,
-             status,
-             error_message
-           )
-           VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7)`,
-          [
-            row.id,
-            emailResult.messageId || null,
-            emailResult.to || null,
-            emailResult.subject || null,
-            emailResult.body || null,
-            emailResult.success === true ? 'SUCCESS' : 'FAILED',
-            emailResult.error || null,
-          ]
-        );
-      }
+          if (emailResult) {
+      await pool.query(
+        `INSERT INTO email_logs (
+           alert_id,
+           message_id,
+           to_email,
+           subject,
+           body,
+           sent_at,
+           status,
+           error_message
+         )
+         VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7)`,
+        [
+          row.id,
+          emailResult.messageId || null,
+          emailResult.to || null,
+          emailResult.subject || null,
+          emailResult.body || null,
+          emailResult.success === true ? 'SUCCESS' : 'FAILED',
+          emailResult.error || null,
+        ]
+      );
+    }
+
     } catch (e) {
-      console.error('INSERT email_logs error:', e.message);
+      console.error('INSERT gmail_logs error:', e.message);
     }
   }
 }
+
 
 async function insertSnapshot(data) {
   const { slot1, slot2, freeSlots } = data;
@@ -221,6 +179,7 @@ async function insertSnapshot(data) {
   broadcast({ type: 'SNAPSHOT_CREATED', payload: row });
 }
 
+// Đăng nhập: lưu lịch sử
 async function insertLoginHistory(tai_khoan_id, success, req) {
   const ip =
     req.headers['x-forwarded-for'] ||
@@ -238,6 +197,7 @@ async function insertLoginHistory(tai_khoan_id, success, req) {
   broadcast({ type: 'LOGIN_HISTORY_CREATED', payload: row });
 }
 
+// Lấy user theo username
 async function getUserByUsername(username) {
   const result = await pool.query(
     `SELECT * FROM tai_khoan WHERE username = $1 AND is_active = TRUE`,
@@ -246,6 +206,7 @@ async function getUserByUsername(username) {
   return result.rows[0];
 }
 
+// Lấy user theo id
 async function getUserById(id) {
   const result = await pool.query(
     `SELECT id, username, email, role, is_active, created_at
@@ -256,6 +217,7 @@ async function getUserById(id) {
 }
 
 // ===== 4. Xử lý Serial từ Arduino (EV / ALERT / SNAP) =====
+
 if (parser) {
   parser.on('data', async (rawLine) => {
     const line = rawLine.trim();
@@ -264,6 +226,7 @@ if (parser) {
     console.log('Serial:', line);
 
     try {
+      // EV:...
       if (line.startsWith('EV:')) {
         const [head, ...rest] = line.split('|');
         const eventType = head.substring(3);
@@ -283,34 +246,41 @@ if (parser) {
         return;
       }
 
+      // ALERT:...
       if (line.startsWith('ALERT:')) {
         const [head, ...rest] = line.split('|');
         const alertType = head.substring(6);
 
         let msg = '';
         for (const seg of rest) {
-          const [k] = seg.split('=');
-          if (k === 'msg') msg = seg.substring(4);
+          const [k, v] = seg.split('=');
+          if (k === 'msg') {
+            // phần sau "msg="
+            msg = seg.substring(4);
+          }
         }
         if (!msg) msg = `Alert: ${alertType}`;
 
         if (alertType === 'STAFF_RESET') {
+          // ghi log reset (đã xử lý)
           await insertAlert(alertType, msg, true);
-
+          // đồng thời set tất cả alert chưa xử lý trước đó thành handled
           await pool.query(
             `UPDATE alerts
              SET is_handled = TRUE
              WHERE is_handled = FALSE
                AND alert_type <> 'STAFF_RESET'`
           );
-
+          // thông báo client nên reload alerts
           broadcast({ type: 'ALERTS_RESET' });
         } else {
+          // cảnh báo thường
           await insertAlert(alertType, msg, false);
         }
         return;
       }
 
+      // SNAP:...
       if (line.startsWith('SNAP:')) {
         const body = line.substring(5);
         const segs = body.split('|');
@@ -336,11 +306,15 @@ if (parser) {
 }
 
 // ===== 5. AUTH ROUTES =====
+
+// Đăng ký: luôn tạo role USER (tài khoản thường)
 app.post('/api/auth/register', async (req, res) => {
   const { username, email, password } = req.body || {};
   if (!username || !email || !password) {
     return res.status(400).json({ error: 'Thiếu username, email hoặc password' });
   }
+
+  // ✅ RÀNG BUỘC: mật khẩu tối thiểu 8 ký tự
   if (password.length < 8) {
     return res.status(400).json({ error: 'Mật khẩu phải có ít nhất 8 ký tự.' });
   }
@@ -371,6 +345,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
+// Đăng nhập
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) {
@@ -386,14 +361,20 @@ app.post('/api/auth/login', async (req, res) => {
     const match = await bcrypt.compare(password, user.password_hash);
     const success = !!match;
 
+    // lưu lịch sử đăng nhập
     try {
       await insertLoginHistory(user.id, success, req);
     } catch (eLog) {
       console.error('insertLoginHistory error:', eLog.message);
     }
 
-    if (!match) return res.status(400).json({ error: 'Sai username hoặc password' });
-    if (!user.is_active) return res.status(403).json({ error: 'Tài khoản đã bị khóa' });
+    if (!match) {
+      return res.status(400).json({ error: 'Sai username hoặc password' });
+    }
+
+    if (!user.is_active) {
+      return res.status(403).json({ error: 'Tài khoản đã bị khóa' });
+    }
 
     const safeUser = {
       id: user.id,
@@ -401,7 +382,7 @@ app.post('/api/auth/login', async (req, res) => {
       email: user.email,
       role: user.role,
       is_active: user.is_active,
-      created_at: user.created_at,
+      created_at: user.created_at
     };
 
     const token = signToken(safeUser);
@@ -412,11 +393,14 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Đổi mật khẩu (user + admin)
 app.patch('/api/auth/change-password', authMiddleware, async (req, res) => {
   const { currentPassword, newPassword } = req.body || {};
   if (!currentPassword || !newPassword) {
     return res.status(400).json({ error: 'Thiếu currentPassword hoặc newPassword' });
   }
+
+  // ✅ RÀNG BUỘC: mật khẩu mới tối thiểu 8 ký tự
   if (newPassword.length < 8) {
     return res.status(400).json({ error: 'Mật khẩu mới phải có ít nhất 8 ký tự.' });
   }
@@ -427,16 +411,20 @@ app.patch('/api/auth/change-password', authMiddleware, async (req, res) => {
       [req.user.id]
     );
     const user = userResult.rows[0];
-    if (!user) return res.status(404).json({ error: 'User không tồn tại' });
+    if (!user) {
+      return res.status(404).json({ error: 'User không tồn tại' });
+    }
 
     const match = await bcrypt.compare(currentPassword, user.password_hash);
-    if (!match) return res.status(400).json({ error: 'Mật khẩu hiện tại không đúng' });
+    if (!match) {
+      return res.status(400).json({ error: 'Mật khẩu hiện tại không đúng' });
+    }
 
     const newHash = await bcrypt.hash(newPassword, 10);
-    await pool.query('UPDATE tai_khoan SET password_hash = $1 WHERE id = $2', [
-      newHash,
-      user.id,
-    ]);
+    await pool.query(
+      'UPDATE tai_khoan SET password_hash = $1 WHERE id = $2',
+      [newHash, user.id]
+    );
     res.json({ success: true });
   } catch (err) {
     console.error('PATCH /api/auth/change-password error:', err.message);
@@ -444,6 +432,7 @@ app.patch('/api/auth/change-password', authMiddleware, async (req, res) => {
   }
 });
 
+// Lấy thông tin user hiện tại
 app.get('/api/auth/me', authMiddleware, async (req, res) => {
   try {
     const user = await getUserById(req.user.id);
@@ -455,6 +444,7 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
   }
 });
 
+// Lịch sử đăng nhập của chính user
 app.get('/api/auth/login-history', authMiddleware, async (req, res) => {
   try {
     const { page, limit, offset } = getPagination(req);
@@ -475,7 +465,7 @@ app.get('/api/auth/login-history', authMiddleware, async (req, res) => {
       items: dataResult.rows,
       total: parseInt(countResult.rows[0].count, 10),
       page,
-      limit,
+      limit
     });
   } catch (err) {
     console.error('GET /api/auth/login-history error:', err.message);
@@ -483,6 +473,7 @@ app.get('/api/auth/login-history', authMiddleware, async (req, res) => {
   }
 });
 
+// Lịch sử đăng nhập (ADMIN xem toàn bộ)
 app.get('/api/admin/login-history', authMiddleware, adminOnly, async (req, res) => {
   try {
     const { page, limit, offset } = getPagination(req);
@@ -501,7 +492,7 @@ app.get('/api/admin/login-history', authMiddleware, adminOnly, async (req, res) 
       items: dataResult.rows,
       total: parseInt(countResult.rows[0].count, 10),
       page,
-      limit,
+      limit
     });
   } catch (err) {
     console.error('GET /api/admin/login-history error:', err.message);
@@ -524,6 +515,7 @@ app.delete('/api/admin/login-history/:id', authMiddleware, adminOnly, async (req
 });
 
 // ===== 6. API GIÁM SÁT BÃI XE =====
+
 // Gate events
 app.get('/api/gate-events', authMiddleware, async (req, res) => {
   try {
@@ -539,7 +531,7 @@ app.get('/api/gate-events', authMiddleware, async (req, res) => {
       items: dataResult.rows,
       total: parseInt(countResult.rows[0].count, 10),
       page,
-      limit,
+      limit
     });
   } catch (err) {
     console.error('GET /api/gate-events error:', err.message);
@@ -549,8 +541,9 @@ app.get('/api/gate-events', authMiddleware, async (req, res) => {
 
 app.post('/api/gate-events', authMiddleware, async (req, res) => {
   const { event_type, free_slots, gate_angle, state } = req.body || {};
-  if (!event_type) return res.status(400).json({ error: 'Thiếu event_type' });
-
+  if (!event_type) {
+    return res.status(400).json({ error: 'Thiếu event_type' });
+  }
   try {
     const result = await pool.query(
       `INSERT INTO gate_events (event_type, free_slots, gate_angle, state)
@@ -621,7 +614,7 @@ app.get('/api/alerts', authMiddleware, async (req, res) => {
       items: dataResult.rows,
       total: parseInt(countResult.rows[0].count, 10),
       page,
-      limit,
+      limit
     });
   } catch (err) {
     console.error('GET /api/alerts error:', err.message);
@@ -629,10 +622,12 @@ app.get('/api/alerts', authMiddleware, async (req, res) => {
   }
 });
 
+// Thêm alert thủ công (không gửi email để khỏi spam)
 app.post('/api/alerts', authMiddleware, async (req, res) => {
   const { alert_type, message, is_handled } = req.body || {};
-  if (!alert_type) return res.status(400).json({ error: 'Thiếu alert_type' });
-
+  if (!alert_type) {
+    return res.status(400).json({ error: 'Thiếu alert_type' });
+  }
   try {
     const result = await pool.query(
       `INSERT INTO alerts (alert_type, message, is_handled)
@@ -649,6 +644,7 @@ app.post('/api/alerts', authMiddleware, async (req, res) => {
   }
 });
 
+// Cập nhật alert
 app.put('/api/alerts/:id', authMiddleware, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
@@ -673,6 +669,7 @@ app.put('/api/alerts/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// Xoá alert
 app.delete('/api/alerts/:id', authMiddleware, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
@@ -687,10 +684,12 @@ app.delete('/api/alerts/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// Đánh dấu alert đã xử lý (theo id)
 app.patch('/api/alerts/:id/handle', authMiddleware, async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
-
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ error: 'Invalid id' });
+  }
   try {
     const result = await pool.query(
       `UPDATE alerts SET is_handled = TRUE WHERE id = $1 RETURNING *`,
@@ -705,14 +704,18 @@ app.patch('/api/alerts/:id/handle', authMiddleware, async (req, res) => {
   }
 });
 
+// 👉 API mới: reset từ UI (gửi lệnh CMD_RESET cho Arduino)
 app.post('/api/alerts/reset-from-ui', authMiddleware, async (req, res) => {
   try {
     if (!port || !port.isOpen) {
       return res.status(500).json({ error: 'Arduino không kết nối (serial chưa open)' });
     }
     port.write('CMD_RESET\n', (err) => {
-      if (err) console.error('Serial write error:', err.message);
+      if (err) {
+        console.error('Serial write error:', err.message);
+      }
     });
+    // DB sẽ được cập nhật khi Arduino log ALERT:STAFF_RESET
     res.json({ success: true });
   } catch (err) {
     console.error('POST /api/alerts/reset-from-ui error:', err.message);
@@ -735,7 +738,7 @@ app.get('/api/slot-snapshots', authMiddleware, async (req, res) => {
       items: dataResult.rows,
       total: parseInt(countResult.rows[0].count, 10),
       page,
-      limit,
+      limit
     });
   } catch (err) {
     console.error('GET /api/slot-snapshots error:', err.message);
@@ -798,8 +801,10 @@ app.delete('/api/slot-snapshots/:id', authMiddleware, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 // ===== Gmail logs (ADMIN) =====
+
+// GET /api/gmail-logs  (ADMIN xem lịch sử gửi email cảnh báo)
+// /api/gmail-logs  (ADMIN xem lịch sử gửi email cảnh báo)
 app.get('/api/gmail-logs', authMiddleware, adminOnly, async (req, res) => {
   try {
     const { page, limit, offset } = getPagination(req);
@@ -814,8 +819,8 @@ app.get('/api/gmail-logs', authMiddleware, adminOnly, async (req, res) => {
          to_email,
          subject,
          body,
-         sent_at AS created_at,
-         (status = 'SUCCESS') AS success,
+         sent_at AS created_at,              -- map sang field cũ cho frontend
+         (status = 'SUCCESS') AS success,    -- boolean
          error_message AS error
        FROM email_logs
        ORDER BY sent_at DESC
@@ -835,13 +840,15 @@ app.get('/api/gmail-logs', authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
+// DELETE /api/gmail-logs/:id
 app.delete('/api/gmail-logs/:id', authMiddleware, adminOnly, async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ error: 'Invalid id' });
+  }
 
   try {
-    // ✅ FIX: đúng bảng email_logs
-    await pool.query('DELETE FROM email_logs WHERE id = $1', [id]);
+    await pool.query('DELETE FROM gmail_logs WHERE id = $1', [id]);
     res.json({ success: true });
   } catch (err) {
     console.error('DELETE /api/gmail-logs/:id error:', err.message);
@@ -849,19 +856,10 @@ app.delete('/api/gmail-logs/:id', authMiddleware, adminOnly, async (req, res) =>
   }
 });
 
-// ✅ handler để trả lỗi CORS rõ ràng (đỡ “vẫn lỗi” mà không biết vì sao)
-app.use((err, req, res, next) => {
-  if (err && String(err.message || '').startsWith('Not allowed by CORS')) {
-    return res.status(403).json({ error: err.message });
-  }
-  next(err);
-});
-
 // ===== 7. Start server =====
-const PORT = parseInt(process.env.PORT || '3000', 10);
-
+const PORT = 3000;
 server.listen(PORT, () => {
   console.log(`Backend running at http://localhost:${PORT}`);
   console.log('WebSocket server ready at ws://localhost:' + PORT);
-  console.log('ARDUINO_PORT:', ARDUINO_PORT);
+  console.log('Nhớ chỉnh ARDUINO_PORT cho đúng.');
 });

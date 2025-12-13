@@ -1,11 +1,6 @@
 // src/api.js
-const API_BASE =
-  (import.meta?.env?.VITE_API_BASE || '').replace(/\/+$/, '') ||
-  'http://localhost:3000';
-
-export const WS_URL =
-  (import.meta?.env?.VITE_WS_URL || '').replace(/\/+$/, '') ||
-  'ws://localhost:3000';
+const API_BASE = 'http://localhost:3000';
+export const WS_URL = 'ws://localhost:3000';
 
 export function getStoredUser() {
   const raw = localStorage.getItem('user');
@@ -24,10 +19,6 @@ export function getToken() {
 async function request(path, options = {}) {
   const headers = {
     'Content-Type': 'application/json',
-
-    // ✅ QUAN TRỌNG: bypass ngrok browser warning (ngrok-free)
-    'ngrok-skip-browser-warning': 'true',
-
     ...(options.headers || {}),
   };
 
@@ -55,5 +46,6 @@ export const api = {
     request(path, { method: 'PUT', body: JSON.stringify(body) }),
   patch: (path, body) =>
     request(path, { method: 'PATCH', body: JSON.stringify(body) }),
-  delete: (path) => request(path, { method: 'DELETE' }),
+  delete: (path) =>
+    request(path, { method: 'DELETE' }),
 };
