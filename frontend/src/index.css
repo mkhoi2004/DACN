@@ -36,9 +36,9 @@ body {
    ========================= */
 
 .app-container {
-  max-width: 1280px;
+  width: min(1280px, 96%);
   margin: 0 auto;
-  padding: 28px 24px 40px;
+  padding: clamp(12px, 2.0vw, 28px) clamp(12px, 2.0vw, 24px) clamp(18px, 3.0vw, 40px);
 }
 
 /* HEADER (tên trang + user) */
@@ -52,7 +52,7 @@ header.app-header {
 }
 
 .app-title {
-  font-size: 32px;
+  font-size: clamp(20px, 3.0vw, 32px);
   font-weight: 700;
   margin: 0;
 }
@@ -88,12 +88,12 @@ header.app-header {
 
 .nav button,
 .nav a {
-  padding: 10px 18px;
+  padding: clamp(6px, 1.2vw, 10px) clamp(10px, 2.5vw, 18px);
   border-radius: 999px;
   border: 1px solid transparent;
   background: #e5e7eb;
   color: #111827;
-  font-size: 14px;
+  font-size: clamp(12px, 1.2vw, 14px);
   cursor: pointer;
   text-decoration: none;
   transition: all 0.18s ease;
@@ -156,16 +156,16 @@ button:disabled {
 
 .grid {
   display: grid;
-  grid-template-columns: 1fr 1fr; /* hai cột bằng nhau */
-  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: clamp(12px, 2.0vw, 24px);
   align-items: stretch;
-  margin-bottom: 24px;
+  margin-bottom: clamp(12px, 2.0vw, 24px);
 }
 
 .card {
   background: var(--bg-card);
   border-radius: var(--radius-lg);
-  padding: 26px 28px;
+  padding: clamp(12px, 2.0vw, 26px);
   box-shadow: var(--shadow-soft);
   display: flex;
   flex-direction: column;
@@ -194,9 +194,9 @@ button:disabled {
 }
 
 .pill {
-  padding: 6px 14px;
+  padding: clamp(4px, 1.0vw, 6px) clamp(8px, 2.0vw, 14px);
   border-radius: 999px;
-  font-size: 13px;
+  font-size: clamp(12px, 1.0vw, 13px);
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -237,9 +237,14 @@ button:disabled {
   margin-top: 10px;
 }
 
+.table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .crud-table th,
 .crud-table td {
-  padding: 10px 12px;
+  padding: clamp(6px, 1.2vw, 10px) clamp(8px, 1.8vw, 12px);
   border-bottom: 1px solid var(--border-soft);
   text-align: left;
 }
@@ -263,11 +268,11 @@ button:disabled {
    ========================= */
 
 .form-card {
-  max-width: 520px;
-  margin: 70px auto;
+  max-width: min(520px, 94%);
+  margin: clamp(24px, 6vh, 70px) auto;
   background: var(--bg-card);
-  padding: 36px 40px;
-  border-radius: 22px;
+  padding: clamp(16px, 3.5vw, 36px);
+  border-radius: clamp(12px, 2.5vw, 22px);
   box-shadow: var(--shadow-soft);
 }
 
@@ -290,10 +295,10 @@ button:disabled {
 
 .form-field input {
   width: 100%;
-  padding: 12px 14px;
+  padding: clamp(8px, 1.8vw, 12px) clamp(10px, 2.2vw, 14px);
   border-radius: 10px;
   border: 1px solid #d1d5db;
-  font-size: 15px;
+  font-size: clamp(14px, 1.4vw, 15px);
   outline: none;
   transition: all 0.16s ease;
 }
@@ -379,5 +384,30 @@ button:disabled {
 
   .form-card {
     margin: 40px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-title {
+    font-size: clamp(18px, 5vw, 22px);
+  }
+
+  header.app-header {
+    gap: 8px;
+  }
+
+  .nav {
+    gap: 8px;
+  }
+
+  .form-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .pagination {
+    gap: 6px;
+    font-size: 13px;
   }
 }

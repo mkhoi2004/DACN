@@ -103,7 +103,8 @@ export default function CrudTable({ title, endpoint, columns }) {
       {error && <div className="error">{error}</div>}
       {loading && <div className="small">Đang tải...</div>}
 
-      <table className="crud-table">
+      <div className="table-wrapper">
+        <table className="crud-table">
         <thead>
           <tr>
             {columns.map((c) => (
@@ -141,7 +142,8 @@ export default function CrudTable({ title, endpoint, columns }) {
             </tr>
           )}
         </tbody>
-      </table>
+        </table>
+      </div>
 
       <div className="pagination">
         <button disabled={page <= 1} onClick={() => fetchData(page - 1)}>
