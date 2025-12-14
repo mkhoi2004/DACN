@@ -84,7 +84,19 @@ if (port) {
 
 // ===== 2. Express + HTTP + WebSocket =====
 const app = express();
-app.use(cors());
+const allowedOrigins = [
+  'https://dacn-orcin.vercel.app',
+  'https://awaited-easy-marten.ngrok-free.app',
+];
+
+app.use(cors({
+  origin: function (origin, cb) {
+    if (!origin) return cb(null, true); // Flutter/Postman thường không có origin
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(new Error('Not allowed by CORS: ' + origin));
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 const server = http.createServer(app);

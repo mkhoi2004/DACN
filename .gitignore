@@ -47,3 +47,43 @@ Desktop.ini
 *.tgz
 *.zip
 .cache/
+
+# Mobile (Flutter)
+# Ignore common Flutter/mobile build and generated files
+/mobile/.dart_tool/
+/mobile/.packages
+/mobile/.flutter-plugins
+/mobile/.flutter-plugins-dependencies
+/mobile/.pub/
+/mobile/.pub-cache/
+
+# Mobile build outputs
+/mobile/build/
+**/mobile/**/build/
+
+# Android (mobile)
+/mobile/android/.gradle/
+/mobile/android/local.properties
+/mobile/android/*.iml
+
+# iOS (mobile)
+/mobile/ios/Pods/
+/mobile/ios/Flutter/Flutter.framework
+/mobile/ios/Runner.xcworkspace/
+
+# Xcode
+/mobile/*.xcuserdata/
+/mobile/*.xcuserstate
+
+# IDE
+/mobile/.idea/
+/mobile/*.iml
+/mobile/.vscode/
+
+# Generated and lock files
+/mobile/pubspec.lock
+
+# Gradle
+/mobile/.gradle/
+**/mobile/**/.gradle/
+
