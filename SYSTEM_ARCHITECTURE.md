@@ -16,6 +16,11 @@ Tài liệu tóm tắt kiến trúc hệ thống DACN — các thành phần, gi
   - Xử lý dữ liệu: lưu vào Postgres, broadcast qua WebSocket, gửi email alert qua Gmail SMTP.
   - Source: backend/ (entry: backend/index.js, DB helper: backend/db.js, mailer: backend/mailer.js)
 
+- **Database**
+  - Postgres được đóng gói và chạy trong Docker (định nghĩa trong `backend/docker-compose.yml`).
+  - Khởi động container bằng: `cd backend && docker-compose up -d`.
+  - Backend kết nối tới Postgres qua `DATABASE_URL` hoặc hostname `db` (theo cấu hình trong `backend/docker-compose.yml`).
+
 - **Mobile (Flutter)**
   - Chạy trên thiết bị thật, gọi backend thông qua URL public (ngrok).
   - Source: mobile/
@@ -51,5 +56,22 @@ Tài liệu tóm tắt kiến trúc hệ thống DACN — các thành phần, gi
 - DB helper: [backend/db.js](backend/db.js)
 - Mailer: [backend/mailer.js](backend/mailer.js)
 - Frontend API base: [frontend/src/api.js](frontend/src/api.js)
+
+## 6. Frontend deployment (Vercel)
+
+- **URL (production):** https://dacn-orcin.vercel.app
+- **Repository / Source:** `frontend/` (connected branch in Vercel).
+- **Build & deploy:** Vercel auto-deploys on push to the connected branch. Alternatively use `vercel --prod` from the `frontend/` folder.
+- **Environment variable:** Add `VITE_API_BASE` in Vercel Project Settings and set it to your public backend URL (ngrok HTTPS for local testing or production API URL).
+- **Recommendation:** Use a stable backend endpoint for production. If using ngrok for local backend, update `VITE_API_BASE` whenever the ngrok URL changes.
+
+## 6. Triển khai Frontend (Vercel)
+
+- **URL (production):** https://dacn-orcin.vercel.app
+- **Kho nguồn / Thư mục:** `frontend/` (branch được kết nối trên Vercel).
+- **Build & deploy:** Vercel tự động deploy khi có push lên branch được kết nối. Có thể deploy thủ công bằng `vercel --prod` từ thư mục `frontend/`.
+- **Biến môi trường:** Thêm `VITE_API_BASE` trong Vercel Project Settings và đặt giá trị là URL backend công cộng (dùng ngrok HTTPS cho test local hoặc URL production cho môi trường thật).
+- **Khuyến nghị:** Sử dụng endpoint backend ổn định cho production. Nếu dùng ngrok để test local, nhớ cập nhật `VITE_API_BASE` khi URL ngrok thay đổi.
+
 
 

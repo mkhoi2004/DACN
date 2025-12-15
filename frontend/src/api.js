@@ -1,6 +1,8 @@
 // src/api.js
-const API_BASE = 'http://localhost:3000';
-export const WS_URL = 'ws://localhost:3000';
+
+// ⚠️ DÙNG NGROK – KHÔNG localhost
+const API_BASE = 'https://awaited-easy-marten.ngrok-free.app';
+export const WS_URL = 'wss://awaited-easy-marten.ngrok-free.app';
 
 export function getStoredUser() {
   const raw = localStorage.getItem('user');
