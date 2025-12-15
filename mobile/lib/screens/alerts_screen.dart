@@ -118,11 +118,13 @@ class _AlertsScreenState extends State<AlertsScreen> {
         }
       });
     } finally {
-      if (!mounted) return;
-      setState(() {
-        loading = false;
-        loadingMore = false;
-      });
+      // ✅ FIX: không dùng return trong finally
+      if (mounted) {
+        setState(() {
+          loading = false;
+          loadingMore = false;
+        });
+      }
     }
   }
 
@@ -157,19 +159,22 @@ class _AlertsScreenState extends State<AlertsScreen> {
             tooltip: 'Tắt còi / Reset cảnh báo (CMD_RESET)',
             icon: const Icon(Icons.volume_off),
             onPressed: () async {
+              // ✅ FIX: chốt messenger trước khi await để khỏi warning "context across async gaps"
+              final messenger = ScaffoldMessenger.of(context);
+
               try {
                 await service.resetAlertsFromUi(token: token);
                 if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
+                messenger.showSnackBar(
                   const SnackBar(
                     content: Text('Đã gửi lệnh reset tới Arduino'),
                   ),
                 );
               } catch (e) {
                 if (!mounted) return;
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Reset lỗi: $e')));
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Reset lỗi: $e')),
+                );
               }
             },
           ),
@@ -221,12 +226,12 @@ class _AlertsScreenState extends State<AlertsScreen> {
                         color: a.isHandled ? Colors.green : Colors.redAccent,
                       ),
                       title: Text(
-                        a.alertType ?? '—',
+                        a.alertType,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       subtitle: Text(
-                        a.message ?? '',
+                        a.message,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         softWrap: true,
@@ -248,6 +253,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
                             if (!a.isHandled)
                               TextButton(
                                 onPressed: () async {
+                                  // ✅ FIX: chốt messenger trước khi await
+                                  final messenger = ScaffoldMessenger.of(
+                                    context,
+                                  );
+
                                   try {
                                     await service.handleAlert(
                                       token: token,
@@ -257,7 +267,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                     await _load();
                                   } catch (e) {
                                     if (!mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
+                                    messenger.showSnackBar(
                                       SnackBar(content: Text('Handle lỗi: $e')),
                                     );
                                   }

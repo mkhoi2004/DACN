@@ -88,11 +88,13 @@ class _GateEventsScreenState extends State<GateEventsScreen> {
         }
       });
     } finally {
-      if (!mounted) return;
-      setState(() {
-        loading = false;
-        loadingMore = false;
-      });
+      // ✅ FIX: Không dùng `return` trong finally nữa
+      if (mounted) {
+        setState(() {
+          loading = false;
+          loadingMore = false;
+        });
+      }
     }
   }
 
@@ -160,7 +162,7 @@ class _GateEventsScreenState extends State<GateEventsScreen> {
                     child: ListTile(
                       leading: const Icon(Icons.meeting_room_outlined),
                       title: Text(
-                        e.eventType ?? '—',
+                        e.eventType,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

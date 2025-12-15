@@ -54,7 +54,8 @@ class _LoginScreenState extends State<LoginScreen> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Theme.of(context).colorScheme.primary.withOpacity(.12),
+                  // was: .withOpacity(.12)
+                  Theme.of(context).colorScheme.primary.withValues(alpha: .12),
                   Theme.of(context).colorScheme.surface,
                 ],
                 begin: Alignment.topLeft,
@@ -185,7 +186,8 @@ class _LeftBrandPanel extends StatelessWidget {
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        color: cs.primaryContainer.withOpacity(.35),
+        // was: cs.primaryContainer.withOpacity(.35)
+        color: cs.primaryContainer.withValues(alpha: .35),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -239,7 +241,8 @@ class _Tag extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: cs.primary.withOpacity(.35)),
+        // was: cs.primary.withOpacity(.35)
+        border: Border.all(color: cs.primary.withValues(alpha: .35)),
         color: cs.surface,
       ),
       child: Text(text, style: Theme.of(context).textTheme.bodySmall),

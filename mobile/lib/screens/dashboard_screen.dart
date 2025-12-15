@@ -46,11 +46,13 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _loadAll();
+      if (!mounted) return;
       _connectRealtime();
     });
   }
 
   Future<void> _loadAll() async {
+    // ✅ đọc token 1 lần trước async để tránh warning use_build_context_synchronously
     final token = context.read<AuthProvider>().token;
     if (token.isEmpty) return;
 
@@ -72,8 +74,11 @@ class _DashboardScreenState extends State<DashboardScreen>
       ..clear()
       ..addAll(s.items);
     snapTotal = s.total;
-    if (snapshots.isNotEmpty)
+
+    // ✅ FIX: if phải có block {}
+    if (snapshots.isNotEmpty) {
       freeSlots = snapshots.first.freeSlots ?? freeSlots;
+    }
 
     if (mounted) setState(() {});
   }
@@ -81,6 +86,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   void _connectRealtime() {
     ws.connect(
       onMessage: (msg) {
+        if (!mounted) return; // ✅ tránh setState sau dispose
+
         final type = msg['type'];
 
         if (type == 'GATE_EVENT_CREATED') {
@@ -145,22 +152,33 @@ class _DashboardScreenState extends State<DashboardScreen>
     final token = context.read<AuthProvider>().token;
     if (token.isEmpty) return;
 
-    setState(() {
-      resetErr = '';
-      resetMsg = '';
-      resetLoading = true;
-    });
+    // ✅ setState chỉ khi mounted
+    if (mounted) {
+      setState(() {
+        resetErr = '';
+        resetMsg = '';
+        resetLoading = true;
+      });
+    }
 
     try {
       await service.resetAlertsFromUi(token: token);
-      setState(() {
-        resetMsg =
-            'Đã gửi lệnh reset tới Arduino. Chờ vài giây để cảnh báo cập nhật realtime.';
-      });
+
+      if (mounted) {
+        setState(() {
+          resetMsg =
+              'Đã gửi lệnh reset tới Arduino. Chờ vài giây để cảnh báo cập nhật realtime.';
+        });
+      }
     } catch (e) {
-      setState(() => resetErr = e.toString());
+      if (mounted) {
+        setState(() => resetErr = e.toString());
+      }
     } finally {
-      if (mounted) setState(() => resetLoading = false);
+      // ✅ FIX: KHÔNG return trong finally
+      if (mounted) {
+        setState(() => resetLoading = false);
+      }
     }
   }
 
@@ -189,7 +207,6 @@ class _DashboardScreenState extends State<DashboardScreen>
           ],
         ),
         actions: [
-          // ✅ NÚT LUÔN HIỂN THỊ (giống web)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: ConstrainedBox(
@@ -234,6 +251,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ],
                 ),
               );
+
+              // ✅ FIX lint: dùng context sau await -> check context.mounted
+              if (!context.mounted) return;
+
               if (confirm == true) {
                 await context.read<AuthProvider>().logout();
               }
@@ -475,15 +496,3 @@ class _SnapTab extends StatelessWidget {
     );
   }
 }
-/*************  ✨ Windsurf Command ⭐  *************/
-/*******  45819ce1-4e64-432b-89da-d64751d9df25  *******/  /// Build a list of snapshots.
-
-  ///
-
-  /// The list will contain a [ListTile] for each snapshot,
-
-  /// with the title displaying the snapshot's ID, and
-
-  /// the subtitle displaying the occupied status of slot 1
-
-  /// and slot 2, as well as the total number of free slots.
