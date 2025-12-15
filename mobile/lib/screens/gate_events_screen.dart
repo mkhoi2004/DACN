@@ -159,15 +159,27 @@ class _GateEventsScreenState extends State<GateEventsScreen> {
                   return Card(
                     child: ListTile(
                       leading: const Icon(Icons.meeting_room_outlined),
-                      title: Text(e.eventType ?? '—'),
+                      title: Text(
+                        e.eventType ?? '—',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       subtitle: Text(
                         'freeSlots: ${e.freeSlots ?? '-'} | '
                         'gate: ${e.gateAngle ?? '-'} | '
                         'state: ${e.state ?? '-'}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
                       ),
-                      trailing: Text(
-                        _formatCreatedAt(e.createdAt),
-                        style: const TextStyle(fontSize: 12),
+                      trailing: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 110),
+                        child: Text(
+                          _formatCreatedAt(e.createdAt),
+                          style: const TextStyle(fontSize: 12),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ),
                   );

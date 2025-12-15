@@ -220,36 +220,52 @@ class _AlertsScreenState extends State<AlertsScreen> {
                             : Icons.warning_amber_outlined,
                         color: a.isHandled ? Colors.green : Colors.redAccent,
                       ),
-                      title: Text(a.alertType ?? '—'),
-                      subtitle: Text(a.message ?? ''),
-                      trailing: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _formatCreatedAt(a.createdAt),
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          const SizedBox(height: 6),
-                          if (!a.isHandled)
-                            TextButton(
-                              onPressed: () async {
-                                try {
-                                  await service.handleAlert(
-                                    token: token,
-                                    id: a.id,
-                                  );
-                                  page = 1;
-                                  await _load();
-                                } catch (e) {
-                                  if (!mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Handle lỗi: $e')),
-                                  );
-                                }
-                              },
-                              child: const Text('Đã xử lý'),
+                      title: Text(
+                        a.alertType ?? '—',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        a.message ?? '',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: true,
+                      ),
+                      trailing: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 120),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _formatCreatedAt(a.createdAt),
+                              style: const TextStyle(fontSize: 12),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                        ],
+                            const SizedBox(height: 6),
+                            if (!a.isHandled)
+                              TextButton(
+                                onPressed: () async {
+                                  try {
+                                    await service.handleAlert(
+                                      token: token,
+                                      id: a.id,
+                                    );
+                                    page = 1;
+                                    await _load();
+                                  } catch (e) {
+                                    if (!mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Handle lỗi: $e')),
+                                    );
+                                  }
+                                },
+                                child: const Text('Đã xử lý'),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   );

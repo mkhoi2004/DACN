@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: smart_parking_pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: smart_parking
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Minhkhoi2204
+      PGDATA: /var/lib/postgresql/18/data
+    ports:
+      - "5432:5432"
+    volumes:
+      - smart_parking_data:/var/lib/postgresql
+
+volumes:
+  smart_parking_data:

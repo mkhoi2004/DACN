@@ -192,16 +192,19 @@ class _DashboardScreenState extends State<DashboardScreen>
           // ✅ NÚT LUÔN HIỂN THỊ (giống web)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: FilledButton.icon(
-              onPressed: resetLoading ? null : _resetFromUi,
-              icon: const Icon(Icons.volume_off),
-              label: Text(
-                resetLoading
-                    ? 'Đang gửi reset...'
-                    : 'Đã xử lý cảnh báo (tắt còi/đóng cổng)',
-              ),
-              style: FilledButton.styleFrom(
-                backgroundColor: alarmActive ? Colors.red : Colors.grey,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 180),
+              child: FilledButton.icon(
+                onPressed: resetLoading ? null : _resetFromUi,
+                icon: const Icon(Icons.volume_off),
+                label: Text(
+                  resetLoading ? 'Đang gửi reset...' : 'Đã xử lý cảnh báo',
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: alarmActive ? Colors.red : Colors.grey,
+                ),
               ),
             ),
           ),
@@ -209,6 +212,32 @@ class _DashboardScreenState extends State<DashboardScreen>
             tooltip: 'Reload',
             icon: const Icon(Icons.refresh),
             onPressed: _loadAll,
+          ),
+          IconButton(
+            tooltip: 'Đăng xuất',
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Đăng xuất'),
+                  content: const Text('Bạn có chắc muốn đăng xuất?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      child: const Text('Hủy'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      child: const Text('Đăng xuất'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirm == true) {
+                await context.read<AuthProvider>().logout();
+              }
+            },
           ),
         ],
       ),
@@ -354,14 +383,26 @@ class _AlertsTab extends StatelessWidget {
               a.isHandled ? Icons.check_circle : Icons.warning,
               color: a.isHandled ? Colors.green : Colors.red,
             ),
-            title: Text('${a.alertType}  •  #${a.id}'),
-            subtitle: Text(a.message),
-            trailing: a.isHandled
-                ? const Text('Đã xử lý')
-                : TextButton(
-                    onPressed: () => onHandle(a.id),
-                    child: const Text('Đánh dấu đã xử lý'),
-                  ),
+            title: Text(
+              '${a.alertType}  •  #${a.id}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Text(
+              a.message,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              softWrap: true,
+            ),
+            trailing: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 140),
+              child: a.isHandled
+                  ? const Text('Đã xử lý')
+                  : TextButton(
+                      onPressed: () => onHandle(a.id),
+                      child: const Text('Đánh dấu đã xử lý'),
+                    ),
+            ),
           ),
         );
       },
@@ -384,9 +425,16 @@ class _GateTab extends StatelessWidget {
         return Card(
           child: ListTile(
             leading: const Icon(Icons.meeting_room),
-            title: Text('${g.eventType}  •  #${g.id}'),
+            title: Text(
+              '${g.eventType}  •  #${g.id}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
             subtitle: Text(
               'freeSlots=${g.freeSlots ?? '-'}  gate=${g.gateAngle ?? '-'}  state=${g.state ?? '-'}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
             ),
           ),
         );
@@ -410,9 +458,16 @@ class _SnapTab extends StatelessWidget {
         return Card(
           child: ListTile(
             leading: const Icon(Icons.timeline),
-            title: Text('Snapshot • #${s.id}'),
+            title: Text(
+              'Snapshot • #${s.id}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
             subtitle: Text(
               'slot1=${s.slot1Occupied ? 1 : 0}  slot2=${s.slot2Occupied ? 1 : 0}  freeSlots=${s.freeSlots ?? '-'}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
             ),
           ),
         );
